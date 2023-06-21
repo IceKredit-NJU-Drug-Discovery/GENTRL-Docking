@@ -8,7 +8,6 @@ import logging
 import os
 import numpy as np
 import selfies as sf
-# import selfies as sf
 
 from moses.metrics.utils import get_mol
 
@@ -41,9 +40,6 @@ class TrainStats():
 
 
 class GENTRL(nn.Module):
-    '''
-    GENTRL model
-    '''
     def __init__(self, enc, dec, latent_descr, feature_descr, tt_int=40,
                  tt_type='usual', beta=0.01, gamma=0.1):
         super(GENTRL, self).__init__()
@@ -57,7 +53,7 @@ class GENTRL(nn.Module):
         self.latent_descr = latent_descr
         self.feature_descr = feature_descr
 
-        self.tt_int = tt_int  # m
+        self.tt_int = tt_int 
         self.tt_type = tt_type
 
         self.lp = LP(distr_descr=self.latent_descr + self.feature_descr,
@@ -236,8 +232,7 @@ class GENTRL(nn.Module):
                 print(p+"   saved")
             scheduler.step()
             scheduler_dec.step()
-            print("第%d个epoch的学习率：%f" % (epoch_i, optimizer.param_groups[0]['lr']))
-            print("第%d个epoch的dec学习率：%f" % (epoch_i, optimizer_dec.param_groups[0]['lr']))
+
             if i > 0:
                 local_stats.print()
                 stats_dic.append(local_stats)
@@ -258,14 +253,12 @@ class GENTRL(nn.Module):
         local_stats = TrainStats()
         record_mean_reward = []
         record_valid_perc = []
-#         record_loss = []
-#         record_mean_som = []
         record_reward_bl = []
         record_mean_mfp_sum = []
         record_mean_bayes = []
         cur_iteration = 0
         while cur_iteration < num_iterations:
-#             print("cur_iteration:"+str(cur_iteration),end='')
+
             print("!", end='')
             
             exploit_size = int(batch_size * (1 - exploration_ratio))
@@ -280,19 +273,12 @@ class GENTRL(nn.Module):
             expl_z += z_means[None, :]
 
             z = torch.cat([exploit_z, expl_z])
-#             print("*",end='')
             smiles = self.dec.sample(50, z, argmax=False)
             
             
-            # add distinct rf
-#             print('len smiles:',len(smiles))
             sf_smiles = [sf.decoder(s) for s in smiles]
             r_list = reward_fn(sf_smiles)
-#             r_list = np.array([list(reward_fn(s,cur_iteration)) for s in smiles])
-#             r_list = r_list.sum(
-            # add feature of topN
-            
-#             r_list = np.array([list(reward_fn(s)) for s in smiles])
+
             rewards = r_list.sum(axis=1)
             split_pos = int(topN * len(rewards))
             pos = np.argpartition(rewards,-split_pos)[-split_pos:]
@@ -319,12 +305,8 @@ class GENTRL(nn.Module):
             optimizer_lp.step()
  
             valid_sm = [s for s in sf_smiles if get_mol(s) is not None]
-#             mean_reward = rewards.mean()
-#             mean_bayes = r_list[:,2:].sum(axis=0) / len(smiles)
-#             mean_mfp_sum = np.nanmean(r_list[:,1])#.nanmean()
-            
+
             mean_reward = r_list.sum() / len(smiles)
-#             mean_som = r_list.sum(axis=0) / len(smiles)
             valid_perc = len(valid_sm) / len(smiles)
             cur_stats = {'r_list_sum':r_list.sum(),
                          'mean_reward': mean_reward,
@@ -334,12 +316,7 @@ class GENTRL(nn.Module):
             global_stats.update(cur_stats)
             record_mean_reward.append(mean_reward)
             record_valid_perc.append(valid_perc)
-#             record_mean_som.append(mean_som)
-#             record_mean_bayes.append(mean_bayes)
-#             record_mean_mfp_sum.append(mean_mfp_sum)
-            
-#             record_loss.append(loss)
-#             record_reward_bl.append(mean_reward_bl)
+
             cur_iteration += 1
 
             if verbose_step and (cur_iteration + 1) % verbose_step == 0:
@@ -348,106 +325,14 @@ class GENTRL(nn.Module):
                 local_stats.reset()
                 print("\ncur_iteration:"+str(cur_iteration)+"\n")
             if ((cur_iteration+1)%1000==0) or (400<=cur_iteration<1000 and (cur_iteration+1)%100==0)or(cur_iteration<400  and (cur_iteration+1)%10==0):
-                path = file_path+"/SOM_model_iter"+str(cur_iteration)
+                path = file_path+"/Bayes_model_iter"+str(cur_iteration)
                 os.mkdir(path)
                 self.save("./"+path)
                 print("\nmodel_iter"+str(cur_iteration)+" saved\n")
 
         return global_stats, record_mean_reward, record_valid_perc#,record_mean_bayes,record_mean_mfp_sum
     
-#     def increase_vaelp_validity(self, train_loader, num_epochs=10,
-#                        verbose_step=50, lr=1e-3):
-#         optimizer = optim.Adam(self.parameters(), lr=lr)
-#         optimizer_dec = optim.Adam(self.dec.latent_fc.parameters(), lr=lr)
 
-#         global_stats = TrainStats()
-#         local_stats = TrainStats()
-
-#         epoch_i = 0
-#         to_reinit = False
-#         buf = None
-
-
-#         i = 0
-#         if verbose_step:
-#             print("Epoch", epoch_i, ":")
-
-#         if epoch_i in [0, 1, 5]:
-#             to_reinit = True
-
-#         epoch_i += 1
-
-#         if epoch_i % 2 == 0:
-#             for x_batch, y_batch in train_loader:
-#                 if verbose_step:
-#                     print("!", end='')
-
-#                 i += 1
-
-#                 y_batch = y_batch.float().to(self.lp.tt_cores[0].device)
-#                 if len(y_batch.shape) == 1:
-#                     y_batch = y_batch.view(-1, 1).contiguous()
-
-#                 if to_reinit:
-#                     if (buf is None) or (buf.shape[0] < 5000):
-#                         enc_out = self.enc.encode(x_batch)
-#                         means, log_stds = torch.split(enc_out,
-#                                                       len(self.latent_descr),
-#                                                       dim=1)
-#                         z_batch = (means + torch.randn_like(log_stds) *
-#                                    torch.exp(0.5 * log_stds))
-#                         cur_batch = torch.cat([z_batch, y_batch], dim=1)
-#                         if buf is None:
-#                             buf = cur_batch
-#                         else:
-#                             buf = torch.cat([buf, cur_batch])
-#                     else:
-#                         descr = len(self.latent_descr) * [0]
-#                         descr += len(self.feature_descr) * [1]
-#                         self.lp.reinit_from_data(buf, descr)
-#                         self.lp.cuda()
-#                         buf = None
-#                         to_reinit = False
-
-#                     continue
-
-#                 elbo, cur_stats = self.get_elbo(x_batch, y_batch)
-#                 local_stats.update(cur_stats)
-#                 global_stats.update(cur_stats)
-
-#                 optimizer.zero_grad()
-#                 loss = -elbo
-#                 loss.backward()
-#                 optimizer.step()
-                
-                
-#                 batch_size=len(x_batch)
-#                 z = self.lp.sample(batch_size, 50 * ['s'] + ['m']) 
-
-#                 smiles = self.dec.sample(50, z, argmax=False)
-#                 log_probs = self.dec.weighted_forward(smiles, z)
-#                 r_list = [1 if get_mol(s) is not None else 0 for s in smiles]
-#                 rewards = torch.tensor(r_list).float().to(z.device)
-#                 rewards_bl = rewards - rewards.mean()
-                
-#                 loss = -(log_probs * rewards_bl).mean()
-#                 loss.backward()
-                                
-#                 optimizer_dec.zero_grad()
-#                 optimizer_dec.step()
-                
-#                 if verbose_step and i % verbose_step == 0:
-#                     local_stats.print()
-#                     local_stats.reset()
-#                     i = 0
-
-#             epoch_i += 1
-#             if i > 0:
-#                 local_stats.print()
-#                 local_stats.reset()
-
-#         return global_stats
-    
     def increase_vaelp_validity(self, train_loader, num_epochs=1000,
                        verbose_step=50, lr=1e-3,file_path = '',dec_ratio=0.5):
         lr_dec = lr * dec_ratio
@@ -455,7 +340,6 @@ class GENTRL(nn.Module):
         optimizer = optim.Adam(self.parameters(), lr=lr)
         optimizer_dec = optim.Adam(self.dec.latent_fc.parameters(), lr=lr_dec)
         
-#         os.mkdir(file_path)
         global_stats = TrainStats()
         local_stats = TrainStats()
         loss_lis = []
@@ -465,7 +349,6 @@ class GENTRL(nn.Module):
         buf = None
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1,gamma=0.95)
         scheduler_dec = optim.lr_scheduler.LambdaLR(optimizer_dec, lr_lambda = lambda i: 0.95**i)
-#         scheduler_dec = optim.lr_scheduler.LambdaLR(optimizer_dec, lr_lambda = lambda i: 0 if i<10 else 0.95**(i-10))
         while epoch_i < num_epochs:
             i = 0
             if verbose_step:
@@ -515,7 +398,6 @@ class GENTRL(nn.Module):
                 global_stats.update(cur_stats)
 
                 optimizer.zero_grad()
-#                 optimizer_dec.zero_grad()
                 loss = -elbo
                 loss.backward()
                 optimizer.step()
@@ -523,11 +405,9 @@ class GENTRL(nn.Module):
                 
                 
                 batch_size=len(x_batch)
-#                 smiles = self.sample(batch_size)
                 z = self.lp.sample(batch_size, 50 * ['s'] + ['m']) 
                 smiles = self.dec.sample(100, z, argmax=False)
                 log_probs = self.dec.weighted_forward(smiles, z)
-#                 r_list = list(map(get_mol,smiles))
                 r_list = [1 if get_mol(s) is not None else 0 for s in smiles]
                 rewards = torch.tensor(r_list).float().to(z.device)
                 rewards_bl = rewards - rewards.mean()
@@ -554,8 +434,6 @@ class GENTRL(nn.Module):
                 print(p+"   saved")
             scheduler.step()
             scheduler_dec.step()
-            print("第%d个epoch的学习率：%f" % (epoch_i, optimizer.param_groups[0]['lr']))
-            print("第%d个epoch的dec学习率：%f" % (epoch_i, optimizer_dec.param_groups[0]['lr']))
             if i > 0:
                 local_stats.print()
                 stats_dic.append(local_stats)
