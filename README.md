@@ -8,15 +8,15 @@ introduced in [Improving Drug Discovery with a Hybrid Deep Generative Model Usin
 
 ## install
 
-`gentrl-docking` additionally depends on `rdkit` and  on setting up CUDA libraries.
+`gentrl-docking` additionally depends on `rdkit` and appropriatey configured CUDA libraries.
 Our package was tested with `python=3.7`, `pytorch=1.10.2` and `rdkit=2020.09.1`; 
 see the `environment.yml` files for the exact configurations.
 
 ## Workflow
 
-Working with MoLeR can be roughly divided into four stages:
+Working with GENTRL can be roughly divided into four stages:
 *data preprocessing*, users should provide a csv file list of SMILES strings containing descriptions of the molecular properties,
-*training*, where MoLeR is trained on the preprocessed data until convergence;
+*training*, where GENTRL is trained on the preprocessed data until convergence;
 *sampling*, where new molecules are generated from the trained model;
 *reinforcement learning*, where a previously trained model is fine-tuned based on sampled molecules and reward function.
 
