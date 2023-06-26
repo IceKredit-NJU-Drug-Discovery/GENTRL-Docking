@@ -1,5 +1,128 @@
 # GENTRL-Docking
-A modified version of In Silico Medicine's GENTRL algorithm trained on approximate docking scores
 
-## Pretraining Data Access
+[![license](https://img.shields.io/github/license/microsoft/molecule-generation.svg)](https://github.com/microsoft/molecule-generation/blob/main/LICENSE)
+[![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
+
+This repository contains a modified version of In Silico Medicine's GENTRL algorithm trained on approximate docking scores, 
+introduced in [Improving Drug Discovery with a Hybrid Deep Generative Model Using Reinforcement Learning Trained on Bayesian Feature Representation]
+
+## Pretrained dataset
 https://drive.google.com/file/d/1N5Rny0_JnFVAkWJpHfC1Nzs-MgU5eLH2/view?usp=sharing
+
+## install
+
+
+`gentrl-docking` additionally depends on `rdkit` and  on setting up CUDA libraries.
+Our package was tested with `python=3.7`, `pytorch=1.10.2` and `rdkit=2020.09.1`; 
+see the `environment.yml` files for the exact configurations.
+
+
+
+Alternatively, `pip install -e .` within the root folder installs the latest state of the code, including changes that were merged into `main` but not yet released.
+
+A MoLeR checkpoint trained using the default hyperparameters is available [here](https://figshare.com/ndownloader/files/34642724). This file needs to be saved in a fresh folder `MODEL_DIR` (e.g., `/tmp/MoLeR_checkpoint`) and be renamed to have the `.pkl` ending (e.g., to `GNN_Edge_MLP_MoLeR__2022-02-24_07-16-23_best.pkl`). Then you can sample 10 molecules by running
+
+```bash
+molecule_generation sample MODEL_DIR 10
+```
+
+See below for how to train your own model and run more advanced inference.
+
+
+## Workflow
+
+Working with MoLeR can be roughly divided into four stages:
+*data preprocessing*, users should provide a csv file list of SMILES strings containing descriptions of the molecular properties,
+*training*, where MoLeR is trained on the preprocessed data until convergence;
+*sampling*, where new molecules are generated from the trained model;
+*reinforcement learning*, where a previously trained model is fine-tuned based on sampled molecules and reward function.
+
+### Data Preprocessing
+
+To run preprocessing, your data has to follow a simple csv format, each containing SMILES strings and properties.
+a sample pretraining dataset can be found here: https://drive.google.com/file/d/1N5Rny0_JnFVAkWJpHfC1Nzs-MgU5eLH2/view?usp=sharing
+
+Then, the model can load the dataset in format:
+```
+ {'path':'ddr1_datasets/ZINC_IHAD_~100k_clean.csv',
+         'smiles': 'smiles',
+         'prob': 0.175,
+         'label' : 'label',
+ }
+ `path` is the dataset location;
+ `smiles` is the columns name for SMILES strings;
+ `label` is the columns name for label;
+ `prob` is the proportion of this dataset in the whole training data;
+```
+
+### Training
+
+Having stored some preprocessed data under `ddr1_datasets`, the model can be trained by running codes on `Pretrained_Generation_Example.ipynb`
+
+After running codes, you should get an output model file as:
+```
+    dec.model
+    enc.model
+    lp.model
+    order.pkl
+```
+A sample model is shown in /model/Bayes_model_iter599
+
+
+### Sampling
+
+`sample.ipynb`  could generate new molecules in the form of SMILES strings. There is a existed reinforcement learning model under `/model/Bayes_model_iter599`  which could be used.  
+
+This code could be used to load the model:
+
+```python
+model.load('../model/Bayes_model_iter599')
+```
+
+Following code could help to sample, remove the invalid molecules from the sample and merge the effective number of duplicates.
+
+```
+def gen_mol(model, n_r):
+    generated = []
+    for i in range(n_r):
+        sampled = model.sample(100)
+        sampled_valid = [s for s in sampled if get_mol(s)]
+        generated += sampled_valid
+    df = pd.DataFrame(generated, columns = ['SMILES'])
+    res_count = pd.DataFrame(df.value_counts()).rename({0:'count'},axis = 1).reset_index()
+    return res_count
+
+`model` the model to be sampled;
+`n_r` the amount of sampling SMILES including invalid and duplicated results is 100 times of n_r.
+```
+
+
+
+### Reinforcement Learning
+
+Having pretrained a model from previous steps, the RL step can be implemented by running codes on `Reinforcement_Learning_Example.ipynb` 
+
+the sample reward function looks like:
+```
+    def reward_fn(mol_or_smiles,cur_iteration=0,bayes_regression = bayes_regression, default=0):
+        mol = get_mol(mol_or_smiles)
+        if mol is None:
+            return default
+        xx = AllChem.GetMorganFingerprintAsBitVect(Chem.MolFromSmiles(mol_or_smiles), 2, nBits=2048)
+        xx = np.vstack(xx).reshape(1,-1)
+        mfp_sum = np.array(xx).sum()
+        if mfp_sum<20:
+                return default
+        mfp = 1 / (1+np.exp(-(mfp_sum-60)/10))
+        bayes_regression = np.exp(-bayes_regression.predict(np.array(xx).reshape(1,-1))[0])
+        reward = mfp * bayes_regression
+        return reward
+```
+The code will sample molecules based on pretrained model, and the RL process will maximize the value of reward funciton to get a fine-tuned model.
+
+## Authors
+* [Chris Butch](mailto:chrisbutch@nju.edu.cn)
+* [Youjin Xiong](mailto:xiongyoujin@foxmail.com)
+* [Linyun Gu](mailto:gu_lingyun@icekredit.com)
+* [Yiqing Wang](mailto:yiqingwangusc@gmail.com)
+* [Junyu Wu](mailto:wu_junyu@icekredit.com)
