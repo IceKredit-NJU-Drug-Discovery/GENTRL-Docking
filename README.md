@@ -6,28 +6,11 @@
 This repository contains a modified version of In Silico Medicine's GENTRL algorithm trained on approximate docking scores, 
 introduced in [Improving Drug Discovery with a Hybrid Deep Generative Model Using Reinforcement Learning Trained on Bayesian Feature Representation]
 
-## Pretrained dataset
-https://drive.google.com/file/d/1N5Rny0_JnFVAkWJpHfC1Nzs-MgU5eLH2/view?usp=sharing
-
 ## install
-
 
 `gentrl-docking` additionally depends on `rdkit` and  on setting up CUDA libraries.
 Our package was tested with `python=3.7`, `pytorch=1.10.2` and `rdkit=2020.09.1`; 
 see the `environment.yml` files for the exact configurations.
-
-
-
-Alternatively, `pip install -e .` within the root folder installs the latest state of the code, including changes that were merged into `main` but not yet released.
-
-A MoLeR checkpoint trained using the default hyperparameters is available [here](https://figshare.com/ndownloader/files/34642724). This file needs to be saved in a fresh folder `MODEL_DIR` (e.g., `/tmp/MoLeR_checkpoint`) and be renamed to have the `.pkl` ending (e.g., to `GNN_Edge_MLP_MoLeR__2022-02-24_07-16-23_best.pkl`). Then you can sample 10 molecules by running
-
-```bash
-molecule_generation sample MODEL_DIR 10
-```
-
-See below for how to train your own model and run more advanced inference.
-
 
 ## Workflow
 
