@@ -87,20 +87,23 @@ Having pretrained a model from previous steps, the RL step can be implemented by
 
 the sample reward function looks like:
 ```
-    def reward_fn(mol_or_smiles,cur_iteration=0,bayes_regression = bayes_regression, default=0):
+    def fn(smiles,reward_fn = bayes_regression,fn):
         mol = get_mol(mol_or_smiles)
-        if mol is None:
-            return default
-        xx = AllChem.GetMorganFingerprintAsBitVect(Chem.MolFromSmiles(mol_or_smiles), 2, nBits=2048)
+        
+	xx = AllChem.GetMorganFingerprintAsBitVect(Chem.MolFromSmiles(mol_or_smiles), 2, nBits=2048)
         xx = np.vstack(xx).reshape(1,-1)
-        mfp_sum = np.array(xx).sum()
-        if mfp_sum<20:
-                return default
+        
+	mfp_sum = np.array(xx).sum()
         mfp = 1 / (1+np.exp(-(mfp_sum-60)/10))
-        bayes_regression = np.exp(-bayes_regression.predict(np.array(xx).reshape(1,-1))[0])
+        
+	bayes_regression = np.exp(-bayes_regression.predict(np.array(xx).reshape(1,-1))[0])
         reward = mfp * bayes_regression
-        return reward
+        
+	return reward
 ```
+`smiles` the SMILES strings sampled from pretrained model;
+`reward_fn` the applied reward function
+
 The code will sample molecules based on pretrained model, and the RL process will maximize the value of reward funciton to get a fine-tuned model.
 
 ## Authors
