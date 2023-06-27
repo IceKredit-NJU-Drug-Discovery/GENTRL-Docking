@@ -104,7 +104,9 @@ the sample reward function looks like:
 `smiles` the SMILES strings sampled from pretrained model;
 `reward_fn` the applied reward function
 
-The code will sample molecules based on pretrained model, and the RL process will maximize the value of reward funciton to get a fine-tuned model.
+The code first samples molecules based on pretrained model, and then the  RL process will maximize the value of reward funciton to achieve a fine-tuned model.
+
+Feel free to contact us if you have any suggestions.
 
 ## Authors
 * [Chris Butch](mailto:chrisbutch@nju.edu.cn)
